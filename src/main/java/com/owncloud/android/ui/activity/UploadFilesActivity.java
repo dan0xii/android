@@ -88,7 +88,7 @@ public class UploadFilesActivity extends FileActivity implements
     private boolean mSelectAll;
     private boolean mLocalFolderPickerMode;
     private LocalFileListFragment mFileListFragment;
-    protected Button mUploadBtn;
+    protected MaterialButton mUploadBtn;
     private Spinner mBehaviourSpinner;
     private Account mAccountOnCreation;
     private DialogFragment mCurrentDialog;
@@ -176,7 +176,9 @@ public class UploadFilesActivity extends FileActivity implements
         mCancelButton.setOnClickListener(this);
 
         mUploadBtn = findViewById(R.id.upload_files_btn_upload);
-        mUploadBtn.getBackground().setColorFilter(ThemeUtils.primaryColor(this, true), PorterDuff.Mode.SRC_ATOP);
+//        mUploadBtn.getBackground().setColorFilter(ThemeUtils.primaryColor(this, true), PorterDuff.Mode.SRC_ATOP);
+//        mUploadBtn.setBackgroundColor(ThemeUtils.primaryColor(this, true));
+        mUploadBtn.setBackgroundTintList(ColorStateList.valueOf(ThemeUtils.primaryColor(this, true)));
         mUploadBtn.setOnClickListener(this);
 
         int localBehaviour = PreferenceManager.getUploaderBehaviour(this);
