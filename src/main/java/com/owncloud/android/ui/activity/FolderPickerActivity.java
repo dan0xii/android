@@ -41,7 +41,6 @@ import android.view.View.OnClickListener;
 
 import com.nextcloud.client.di.Injectable;
 import com.nextcloud.client.preferences.AppPreferences;
-import com.nextcloud.client.preferences.PreferenceManager;
 import com.google.android.material.button.MaterialButton;
 import com.owncloud.android.R;
 import com.owncloud.android.datamodel.OCFile;

@@ -28,21 +28,21 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Parcel;
 import android.os.Parcelable;
-
+import androidx.annotation.NonNull;
+import androidx.core.content.FileProvider;
 import com.owncloud.android.R;
 import com.owncloud.android.lib.common.network.WebdavEntry;
 import com.owncloud.android.lib.common.network.WebdavUtils;
 import com.owncloud.android.lib.common.utils.Log_OC;
 import com.owncloud.android.lib.resources.files.model.ServerFileInterface;
 import com.owncloud.android.utils.MimeType;
-
-import java.io.File;
-
-import androidx.annotation.NonNull;
-import androidx.core.content.FileProvider;
 import lombok.Getter;
 import lombok.Setter;
 import third_parties.daveKoeller.AlphanumComparator;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class OCFile implements Parcelable, Comparable<OCFile>, ServerFileInterface {
     private final static String PERMISSION_SHARED_WITH_ME = "S";
@@ -69,7 +69,6 @@ public class OCFile implements Parcelable, Comparable<OCFile>, ServerFileInterfa
     @Getter private boolean needsUpdatingWhileSaving;
     @Getter @Setter private long lastSyncDateForProperties;
     @Getter @Setter private long lastSyncDateForData;
-    @Getter @Setter private boolean availableOffline;
     @Getter @Setter private boolean previewAvailable;
     @Getter private String etag;
     @Getter private String etagOnServer;
@@ -88,6 +87,7 @@ public class OCFile implements Parcelable, Comparable<OCFile>, ServerFileInterfa
     @Getter @Setter private String ownerId;
     @Getter @Setter private String ownerDisplayName;
     @Getter @Setter String note;
+    @Getter @Setter private List<String> sharees = new ArrayList<>();
 
     /**
      * URI to the local path of the file contents, if stored in the device; cached after first call
@@ -198,17 +198,17 @@ public class OCFile implements Parcelable, Comparable<OCFile>, ServerFileInterfa
         if (isEncrypted() && !isFolder()) {
             String parentPath = new File(remotePath).getParent();
 
-            if (parentPath.endsWith("/")) {
+            if (parentPath.endsWith(PATH_SEPARATOR)) {
                 return parentPath + getEncryptedFileName();
             } else {
-                return parentPath + "/" + getEncryptedFileName();
+                return parentPath + PATH_SEPARATOR + getEncryptedFileName();
             }
         } else {
             if (isFolder()) {
-                if (remotePath.endsWith("/")) {
+                if (remotePath.endsWith(PATH_SEPARATOR)) {
                     return remotePath;
                 } else {
-                    return remotePath + "/";
+                    return remotePath + PATH_SEPARATOR;
                 }
             } else {
                 return remotePath;
@@ -411,7 +411,7 @@ public class OCFile implements Parcelable, Comparable<OCFile>, ServerFileInterfa
      */
     public String getParentRemotePath() {
         String parentPath = new File(this.getRemotePath()).getParent();
-        return parentPath.endsWith("/") ? parentPath : parentPath + "/";
+        return parentPath.endsWith(PATH_SEPARATOR) ? parentPath : parentPath + PATH_SEPARATOR;
     }
 
     @Override

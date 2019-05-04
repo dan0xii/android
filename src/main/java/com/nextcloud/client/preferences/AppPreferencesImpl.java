@@ -2,7 +2,9 @@
  * ownCloud Android client application
  *
  * @author David A. Velasco
+ * @author Chris Narkiewicz Chris Narkiewicz
  * Copyright (C) 2016 ownCloud Inc.
+ * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -23,6 +25,7 @@ import android.accounts.Account;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
+
 import com.owncloud.android.authentication.AccountUtils;
 import com.owncloud.android.datamodel.ArbitraryDataProvider;
 import com.owncloud.android.datamodel.FileDataStorageManager;
@@ -36,7 +39,7 @@ import static com.owncloud.android.ui.fragment.OCFileListFragment.FOLDER_LAYOUT_
 /**
  * Helper to simplify reading of Preferences all around the app
  */
-public final class PreferenceManager implements AppPreferences {
+public final class AppPreferencesImpl implements AppPreferences {
     /**
      * Constant to access value of last path selected by the user to upload a file shared from other app.
      * Value handled by the app without direct access in the UI.
@@ -68,22 +71,17 @@ public final class PreferenceManager implements AppPreferences {
     private static final String PREF__LOCK_TIMESTAMP = "lock_timestamp";
     private static final String PREF__SHOW_MEDIA_SCAN_NOTIFICATIONS = "show_media_scan_notifications";
     private static final String PREF__LOCK = SettingsActivity.PREFERENCE_LOCK;
+    private static final String PREF__SELECTED_ACCOUNT_NAME = "select_oc_account";
 
     private final Context context;
     private final SharedPreferences preferences;
 
     public static AppPreferences fromContext(Context context) {
-        Context appContext = context.getApplicationContext();
-        SharedPreferences prefs = getDefaultSharedPreferences(appContext);
-
-        return new PreferenceManager(appContext, prefs);
+        SharedPreferences prefs = android.preference.PreferenceManager.getDefaultSharedPreferences(context);
+        return new AppPreferencesImpl(context, prefs);
     }
 
-    private static SharedPreferences getDefaultSharedPreferences(Context context) {
-        return android.preference.PreferenceManager.getDefaultSharedPreferences(context.getApplicationContext());
-    }
-
-    PreferenceManager(Context appContext, SharedPreferences preferences) {
+    AppPreferencesImpl(Context appContext, SharedPreferences preferences) {
         this.context = appContext;
         this.preferences = preferences;
     }
@@ -432,7 +430,17 @@ public final class PreferenceManager implements AppPreferences {
     @SuppressLint("ApplySharedPref")
     @Override
     public void removeKeysMigrationPreference() {
-        preferences.edit().remove(PreferenceManager.PREF__KEYS_MIGRATION).commit(); // commit synchronously
+        preferences.edit().remove(AppPreferencesImpl.PREF__KEYS_MIGRATION).commit(); // commit synchronously
+    }
+
+    @Override
+    public String getCurrentAccountName() {
+        return preferences.getString(PREF__SELECTED_ACCOUNT_NAME, null);
+    }
+
+    @Override
+    public void setCurrentAccountName(String accountName) {
+        preferences.edit().putString(PREF__SELECTED_ACCOUNT_NAME, accountName).apply();
     }
 
     /**

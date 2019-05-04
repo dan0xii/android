@@ -3,10 +3,12 @@
  *
  * @author Andy Scherzinger
  * @author Tobias Kaminsky
+ * @author Chris Narkiewicz
  * Copyright (C) 2016 Andy Scherzinger
  * Copyright (C) 2017 Tobias Kaminsky
  * Copyright (C) 2016 Nextcloud
  * Copyright (C) 2016 ownCloud Inc.
+ * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU AFFERO GENERAL PUBLIC LICENSE
@@ -54,6 +56,7 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.animation.GlideAnimation;
 import com.bumptech.glide.request.target.SimpleTarget;
 import com.google.android.material.navigation.NavigationView;
+import com.nextcloud.client.account.UserAccountManager;
 import com.nextcloud.client.di.Injectable;
 import com.nextcloud.client.preferences.AppPreferences;
 import com.owncloud.android.MainApp;
@@ -355,7 +358,7 @@ public abstract class DrawerActivity extends ToolbarActivity
             navigationView.getMenu().setGroupVisible(R.id.drawer_menu_accounts, false);
         }
 
-        Account account = AccountUtils.getCurrentOwnCloudAccount(this);
+        Account account = accountManager.getCurrentAccount();
         filterDrawerMenu(navigationView.getMenu(), account);
     }
 
@@ -544,11 +547,10 @@ public abstract class DrawerActivity extends ToolbarActivity
      * @param accountName The account name to be set
      */
     private void accountClicked(String accountName) {
-        if (!AccountUtils.getCurrentOwnCloudAccount(getApplicationContext()).name.equals(accountName)) {
+        final Account currentAccount = accountManager.getCurrentAccount();
+        if (currentAccount != null && !TextUtils.equals(currentAccount.name, accountName)) {
             AccountUtils.setCurrentOwnCloudAccount(getApplicationContext(), accountName);
-
             fetchExternalLinks(true);
-
             restart();
         }
     }
@@ -653,7 +655,7 @@ public abstract class DrawerActivity extends ToolbarActivity
         if (mNavigationView != null && mDrawerLayout != null) {
             if (persistingAccounts.size() > 0) {
                 repopulateAccountList(persistingAccounts);
-                setAccountInDrawer(AccountUtils.getCurrentOwnCloudAccount(this));
+                setAccountInDrawer(accountManager.getCurrentAccount());
                 populateDrawerOwnCloudAccounts();
 
                 // activate second/end account avatar
@@ -706,7 +708,7 @@ public abstract class DrawerActivity extends ToolbarActivity
                             Menu.NONE,
                             MENU_ORDER_ACCOUNT,
                             account.name)
-                            .setIcon(TextDrawable.createAvatar(account.name, mMenuAccountAvatarRadiusDimension));
+                            .setIcon(TextDrawable.createAvatar(account, mMenuAccountAvatarRadiusDimension));
                     DisplayUtils.setAvatar(account, this, mMenuAccountAvatarRadiusDimension, getResources(),
                             accountMenuItem, this);
                 }
@@ -773,7 +775,7 @@ public abstract class DrawerActivity extends ToolbarActivity
                 username.setTextColor(ThemeUtils.fontColor(this));
             } catch (com.owncloud.android.lib.common.accounts.AccountUtils.AccountNotFoundException e) {
                 Log_OC.w(TAG, "Couldn't read display name of account fallback to account name");
-                username.setText(AccountUtils.getAccountUsername(account.name));
+                username.setText(UserAccountManager.getUsername(account));
             }
 
             View currentAccountView = findNavigationViewChildById(R.id.drawer_current_account);
@@ -950,7 +952,11 @@ public abstract class DrawerActivity extends ToolbarActivity
                 MenuItem menuItem = mNavigationView.getMenu().getItem(i);
                 if (menuItem.getIcon() != null) {
                     menuItem.getIcon().clearColorFilter();
-                    ThemeUtils.tintDrawable(menuItem.getIcon(), ContextCompat.getColor(this, R.color.drawer_menu_icon));
+                    if(menuItem.getGroupId() != R.id.drawer_menu_accounts
+                        || menuItem.getItemId() == R.id.drawer_menu_account_add
+                        || menuItem.getItemId() == R.id.drawer_menu_account_manage) {
+                        ThemeUtils.tintDrawable(menuItem.getIcon(), ContextCompat.getColor(this, R.color.drawer_menu_icon));
+                    }
                     menuItem.setTitle(Html.fromHtml("<font color='" + ThemeUtils.colorToHexString(ContextCompat.getColor(this, R.color.textColor)) + "'>" + menuItem.getTitle() + "</font>"));
                 }
             }
@@ -974,15 +980,15 @@ public abstract class DrawerActivity extends ToolbarActivity
         // set user space information
         Thread t = new Thread(new Runnable() {
             public void run() {
-                Context context = MainApp.getAppContext();
-                Account account = AccountUtils.getCurrentOwnCloudAccount(context);
+                final Account currentAccount = accountManager.getCurrentAccount();
 
-                if (account == null) {
+                if (currentAccount == null) {
                     return;
                 }
 
+                final Context context = MainApp.getAppContext();
                 AccountManager mAccountMgr = AccountManager.get(context);
-                String userId = mAccountMgr.getUserData(account,
+                String userId = mAccountMgr.getUserData(currentAccount,
                         com.owncloud.android.lib.common.accounts.AccountUtils.Constants.KEY_USER_ID);
 
                 RemoteOperation getQuotaInfoOperation;
@@ -992,7 +998,7 @@ public abstract class DrawerActivity extends ToolbarActivity
                     getQuotaInfoOperation = new GetRemoteUserInfoOperation(userId);
                 }
 
-                RemoteOperationResult result = getQuotaInfoOperation.execute(account, context);
+                RemoteOperationResult result = getQuotaInfoOperation.execute(currentAccount, context);
 
                 if (result.isSuccess() && result.getData() != null) {
                     final UserInfo userInfo = (UserInfo) result.getData().get(0);
@@ -1000,7 +1006,7 @@ public abstract class DrawerActivity extends ToolbarActivity
 
                     // Since we always call this method, might as well put it here
                     if (userInfo.getId() != null) {
-                        mAccountMgr.setUserData(account,
+                        mAccountMgr.setUserData(currentAccount,
                                 com.owncloud.android.lib.common.accounts.AccountUtils.Constants.KEY_USER_ID,
                                 userInfo.getId());
                     }
@@ -1255,7 +1261,7 @@ public abstract class DrawerActivity extends ToolbarActivity
 
             // current account has changed
             if (data.getBooleanExtra(ManageAccountsActivity.KEY_CURRENT_ACCOUNT_CHANGED, false)) {
-                setAccount(AccountUtils.getCurrentOwnCloudAccount(this));
+                setAccount(accountManager.getCurrentAccount());
                 updateAccountList();
                 restart();
             } else {
@@ -1337,7 +1343,7 @@ public abstract class DrawerActivity extends ToolbarActivity
             }
         }
 
-        Account currentAccount = AccountUtils.getCurrentOwnCloudAccount(this);
+        Account currentAccount = accountManager.getCurrentAccount();
 
         mAvatars[0] = currentAccount;
         int j = 0;
@@ -1419,7 +1425,7 @@ public abstract class DrawerActivity extends ToolbarActivity
                     getCapabilities.execute(getStorageManager(), getBaseContext());
                 }
 
-                Account account = AccountUtils.getCurrentOwnCloudAccount(this);
+                Account account = accountManager.getCurrentAccount();
 
                 if (account != null && getStorageManager() != null &&
                         getStorageManager().getCapability(account.name) != null &&

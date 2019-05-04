@@ -2,8 +2,11 @@
  * Nextcloud Android client application
  *
  * @author Tobias Kaminsky
+ * @author Chris Narkiewicz
+ *
  * Copyright (C) 2018 Tobias Kaminsky
  * Copyright (C) 2018 Nextcloud GmbH.
+ * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,6 +23,7 @@
  */
 package com.owncloud.android.ui.trashbin;
 
+import android.accounts.Account;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -33,7 +37,6 @@ import com.google.android.material.snackbar.Snackbar;
 import com.nextcloud.client.di.Injectable;
 import com.nextcloud.client.preferences.AppPreferences;
 import com.owncloud.android.R;
-import com.nextcloud.client.preferences.PreferenceManager;
 import com.owncloud.android.lib.resources.trashbin.model.TrashbinFile;
 import com.owncloud.android.ui.EmptyRecyclerView;
 import com.owncloud.android.ui.activity.FileActivity;
@@ -99,7 +102,9 @@ public class TrashbinActivity extends FileActivity implements
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        trashbinPresenter = new TrashbinPresenter(new RemoteTrashbinRepository(this), this);
+        final Account currentAccount = getUserAccountManager().getCurrentAccount();
+        final RemoteTrashbinRepository trashRepository = new RemoteTrashbinRepository(this, currentAccount);
+        trashbinPresenter = new TrashbinPresenter(trashRepository, this);
 
         setContentView(R.layout.trashbin_activity);
         unbinder = ButterKnife.bind(this);
@@ -136,7 +141,9 @@ public class TrashbinActivity extends FileActivity implements
             this,
             getStorageManager(),
             preferences,
-            this);
+            this,
+            getUserAccountManager().getCurrentAccount()
+        );
         recyclerView.setAdapter(trashbinListAdapter);
         recyclerView.setHasFixedSize(true);
         recyclerView.setHasFooter(true);

@@ -5,8 +5,10 @@
  *  @author masensio
  *  @author Juan Carlos González Cabrero
  *  @author David A. Velasco
+ *  @author Chris Narkiewicz
  *  Copyright (C) 2012  Bartek Przybylski
  *  Copyright (C) 2016 ownCloud Inc.
+ *  Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2,
@@ -73,9 +75,9 @@ import androidx.core.view.MenuItemCompat;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.FragmentManager;
 
+import com.nextcloud.client.account.UserAccountManager;
 import com.nextcloud.client.di.Injectable;
 import com.nextcloud.client.preferences.AppPreferences;
-import com.nextcloud.client.preferences.PreferenceManager;
 import com.owncloud.android.MainApp;
 import com.owncloud.android.R;
 import com.owncloud.android.datamodel.OCFile;
@@ -107,7 +109,6 @@ import com.owncloud.android.utils.ThemeUtils;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -116,10 +117,14 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 import java.util.Vector;
 
 import javax.inject.Inject;
+
+import static com.owncloud.android.datamodel.OCFile.PATH_SEPARATOR;
+import static com.owncloud.android.datamodel.OCFile.ROOT_PATH;
 
 /**
  * This can be used to upload things to an ownCloud instance.
@@ -172,7 +177,7 @@ public class ReceiveExternalFilesActivity extends FileActivity
             String parentPath = savedInstanceState.getString(KEY_PARENTS);
 
             if (parentPath != null) {
-                mParents.addAll(Arrays.asList(parentPath.split("/")));
+                mParents.addAll(Arrays.asList(parentPath.split(PATH_SEPARATOR)));
             }
 
             mFile = savedInstanceState.getParcelable(KEY_FILE);
@@ -286,9 +291,11 @@ public class ReceiveExternalFilesActivity extends FileActivity
         }
     }
 
-    public static class DialogMultipleAccount extends DialogFragment {
+    public static class DialogMultipleAccount extends DialogFragment implements Injectable {
         private AccountListAdapter mAccountListAdapter;
         private Drawable mTintedCheck;
+
+        @Inject UserAccountManager accountManager;
 
         @NonNull
         @Override
@@ -300,14 +307,14 @@ public class ReceiveExternalFilesActivity extends FileActivity
             int tint = ThemeUtils.primaryColor(getContext());
             DrawableCompat.setTint(mTintedCheck, tint);
 
-            mAccountListAdapter = new AccountListAdapter(parent, getAccountListItems(parent), mTintedCheck);
+            mAccountListAdapter = new AccountListAdapter(parent, accountManager, getAccountListItems(parent), mTintedCheck);
 
             builder.setTitle(R.string.common_choose_account);
             builder.setAdapter(mAccountListAdapter, (dialog, which) -> {
-                final ReceiveExternalFilesActivity parent1 = (ReceiveExternalFilesActivity) getActivity();
-                parent1.setAccount(parent1.mAccountManager.getAccountsByType(
+                final ReceiveExternalFilesActivity parentActivity = (ReceiveExternalFilesActivity) getActivity();
+                parentActivity.setAccount(parentActivity.mAccountManager.getAccountsByType(
                         MainApp.getAccountType(getActivity()))[which], false);
-                parent1.onAccountSet(parent1.mAccountWasRestored);
+                parentActivity.onAccountSet(parentActivity.mAccountWasRestored);
                 dialog.dismiss();
             });
             builder.setCancelable(true);
@@ -770,9 +777,9 @@ public class ReceiveExternalFilesActivity extends FileActivity
 
                 files = sortFileList(files);
 
-                List<HashMap<String, Object>> data = new LinkedList<>();
+                List<Map<String, Object>> data = new LinkedList<>();
                 for (OCFile f : files) {
-                    HashMap<String, Object> h = new HashMap<>();
+                    Map<String, Object> h = new HashMap<>();
                     h.put("dirname", f);
                     data.add(h);
                 }
@@ -881,7 +888,7 @@ public class ReceiveExternalFilesActivity extends FileActivity
         String full_path = "";
 
         for (String a : dirs) {
-            full_path += a + "/";
+            full_path += a + PATH_SEPARATOR;
         }
         return full_path;
     }
@@ -1031,10 +1038,10 @@ public class ReceiveExternalFilesActivity extends FileActivity
         if (mParents.empty()) {
             String lastPath = preferences.getLastUploadPath();
             // "/" equals root-directory
-            if ("/".equals(lastPath)) {
+            if (ROOT_PATH.equals(lastPath)) {
                 mParents.add("");
             } else {
-                String[] dir_names = lastPath.split("/");
+                String[] dir_names = lastPath.split(PATH_SEPARATOR);
                 mParents.clear();
                 mParents.addAll(Arrays.asList(dir_names));
             }

@@ -28,7 +28,7 @@ if [ $3 = $stableBranch ]; then
     echo "New findbugs result for $stableBranch at: https://www.kaminsky.me/nc-dev/$repository-findbugs/$stableBranch.html"
     curl -u $4:$5 -X PUT https://nextcloud.kaminsky.me/remote.php/webdav/$repository-findbugs/$stableBranch.html --upload-file build/reports/spotbugs/spotbugs.html
 
-    summary=$(sed -n "/<h1>Summary<\/h1>/,/<h1>Warnings<\/h1>/p" build/reports/spotbugs/spotbugs.html | head -n-1 | sed s'/<\/a>//'g | sed s'/<a.*>//'g | sed s"/Summary/FindBugs ($stableBranch)/" | tr "\"" "\'" | tr -d "\r\n")
+    summary=$(sed -n "/<h1>Summary<\/h1>/,/<h1>Warnings<\/h1>/p" build/reports/spotbugs/spotbugs.html | head -n-1 | sed s'/<\/a>//'g | sed s'/<a.*>//'g | sed s"/Summary/SpotBugs ($stableBranch)/" | tr "\"" "\'" | tr -d "\r\n")
     curl -u $4:$5 -X PUT -d "$summary" https://nextcloud.kaminsky.me/remote.php/webdav/$repository-findbugs/findbugs-summary-$stableBranch.html
 
     if [ $lintValue -ne 1 ]; then
@@ -57,6 +57,9 @@ else
     baseBranch=$(scripts/analysis/getBranchBase.sh $1 $2 $7 | tr -d "\"")
     if [ $baseBranch = "master" -a $(grep "android-library:master" build.gradle -c) -ne 3 ]; then
         checkLibraryMessage="<h1>Android-library is not set to master branch in build.gradle</h1>"
+        checkLibrary=1
+    elif [ $baseBranch != "master" -a $baseBranch = $stableBranch -a $(grep "android-library:.*SNAPSHOT" build.gradle -c) -ne 0 ]; then
+        checkLibraryMessage="<h1>Android-library is set to a SNAPSHOT in build.gradle</h1>"
         checkLibrary=1
     else
         checkLibrary=0
@@ -97,6 +100,13 @@ else
         lintWarningOld=0
     fi
 
+    if [ $stableBranch = "master" ] ; then
+        codacyValue=$(curl 2>/dev/null https://app.codacy.com/dashboards/breakdown\?projectId\=44248 | grep "total issues" | cut -d">" -f3 | cut -d"<" -f1)
+        codacyResult="<h1>Codacy</h1>$codacyValue"
+    else
+        codacyResult=""
+    fi
+
     lintResult="<h1>Lint</h1><table width='500' cellpadding='5' cellspacing='2'><tr class='tablerow0'><td>Type</td><td><a href='https://www.kaminsky.me/nc-dev/"$repository"-lint/"$stableBranch".html'>$stableBranch</a></td><td><a href='https://www.kaminsky.me/nc-dev/"$repository"-lint/"$6".html'>PR</a></td></tr><tr class='tablerow1'><td>Warnings</td><td>"$lintWarningOld"</td><td>"$lintWarningNew"</td></tr><tr class='tablerow0'><td>Errors</td><td>"$lintErrorOld"</td><td>"$lintErrorNew"</td></tr></table>"
     findbugsResultNew=$(sed -n "/<h1>Summary<\/h1>/,/<h1>Warnings<\/h1>/p" build/reports/spotbugs/spotbugs.html |head -n-1 | sed s'/<\/a>//'g | sed s'/<a.*>//'g | sed s"#Summary#<a href=\"https://www.kaminsky.me/nc-dev/$repository-findbugs/$6.html\">SpotBugs</a> (new)#" | tr "\"" "\'" | tr -d "\n")
     findbugsResultOld=$(curl 2>/dev/null https://www.kaminsky.me/nc-dev/$repository-findbugs/findbugs-summary-$stableBranch.html | tr "\"" "\'" | tr -d "\r\n" | sed s"#SpotBugs#<a href=\"https://www.kaminsky.me/nc-dev/$repository-findbugs/$stableBranch.html\">SpotBugs</a>#" | tr "\"" "\'" | tr -d "\n")
@@ -117,7 +127,7 @@ else
         gplayLimitation="<h1>Following files are beyond 500 char limit:</h1><br><br>"$gplayLimitation
     fi
 
-    curl -u $1:$2 -X POST https://api.github.com/repos/nextcloud/android/issues/$7/comments -d "{ \"body\" : \"$lintResult $findbugsResultNew $findbugsResultOld $checkLibraryMessage $lintMessage $findbugsMessage $gplayLimitation \" }"
+    curl -u $1:$2 -X POST https://api.github.com/repos/nextcloud/android/issues/$7/comments -d "{ \"body\" : \"$codacyResult $lintResult $findbugsResultNew $findbugsResultOld $checkLibraryMessage $lintMessage $findbugsMessage $gplayLimitation \" }"
 
     if [ ! -z "$gplayLimitation" ]; then
         exit 1

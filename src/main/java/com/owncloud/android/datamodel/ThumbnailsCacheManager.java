@@ -3,7 +3,9 @@
  *
  *   @author Tobias Kaminsky
  *   @author David A. Velasco
+ *   @author Chris Narkiewicz
  *   Copyright (C) 2015 ownCloud Inc.
+ *   Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2,
@@ -42,6 +44,7 @@ import android.view.Display;
 import android.view.MenuItem;
 import android.view.WindowManager;
 import android.widget.ImageView;
+
 import com.owncloud.android.MainApp;
 import com.owncloud.android.R;
 import com.owncloud.android.lib.common.OwnCloudAccount;
@@ -60,7 +63,7 @@ import com.owncloud.android.utils.ConnectivityUtils;
 import com.owncloud.android.utils.DisplayUtils.AvatarGenerationListener;
 import com.owncloud.android.utils.FileStorageUtils;
 import com.owncloud.android.utils.MimeTypeUtil;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import org.apache.commons.httpclient.HttpStatus;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.jetbrains.annotations.NotNull;
@@ -71,6 +74,8 @@ import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import java.net.URLEncoder;
 import java.util.List;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Manager for concurrent access to thumbnails cache.
@@ -270,7 +275,7 @@ public final class ThumbnailsCacheManager {
         private Bitmap doResizedImageInBackground() {
             Bitmap thumbnail;
 
-            String imageKey = PREFIX_RESIZED_IMAGE + String.valueOf(file.getRemoteId());
+            String imageKey = PREFIX_RESIZED_IMAGE + file.getRemoteId();
 
             // Check disk cache in background thread
             thumbnail = getBitmapFromDiskCache(imageKey);
@@ -509,7 +514,7 @@ public final class ThumbnailsCacheManager {
         private Bitmap doThumbnailFromOCFileInBackground() {
             Bitmap thumbnail;
             ServerFileInterface file = (ServerFileInterface) mFile;
-            String imageKey = PREFIX_THUMBNAIL + String.valueOf(file.getRemoteId());
+            String imageKey = PREFIX_THUMBNAIL + file.getRemoteId();
 
             // Check disk cache in background thread
             thumbnail = getBitmapFromDiskCache(imageKey);
@@ -906,7 +911,7 @@ public final class ThumbnailsCacheManager {
                                 String newImageKey = "a_" + mUserId + "_" + mServerName + "_" + newETag;
                                 addBitmapToCache(newImageKey, avatar);
                             } else {
-                                return TextDrawable.createAvatar(mAccount.name, mAvatarRadius);
+                                return TextDrawable.createAvatar(mAccount, mAvatarRadius);
                             }
                             break;
 
@@ -923,7 +928,7 @@ public final class ThumbnailsCacheManager {
                     }
                 } catch (Exception e) {
                     try {
-                        return TextDrawable.createAvatar(mAccount.name, mAvatarRadius);
+                        return TextDrawable.createAvatar(mAccount, mAvatarRadius);
                     } catch (Exception e1) {
                         Log_OC.e(TAG, "Error generating fallback avatar");
                     }
@@ -936,7 +941,7 @@ public final class ThumbnailsCacheManager {
 
             if (avatar == null) {
                 try {
-                    return TextDrawable.createAvatar(mAccount.name, mAvatarRadius);
+                    return TextDrawable.createAvatar(mAccount, mAvatarRadius);
                 } catch (Exception e1) {
                     return mResources.getDrawable(R.drawable.ic_user);
                 }

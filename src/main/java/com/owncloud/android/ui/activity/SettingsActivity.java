@@ -3,9 +3,12 @@
  *
  *   @author Bartek Przybylski
  *   @author David A. Velasco
+ *   @author Chris Narkiewicz
+ *
  *   Copyright (C) 2011  Bartek Przybylski
  *   Copyright (C) 2016 ownCloud Inc.
  *   Copyright (C) 2016 Nextcloud
+ *   Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License version 2,
@@ -48,19 +51,14 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.webkit.URLUtil;
-import androidx.annotation.LayoutRes;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatDelegate;
-import androidx.core.content.res.ResourcesCompat;
 
+import com.nextcloud.client.account.UserAccountManager;
 import com.nextcloud.client.di.Injectable;
 import com.nextcloud.client.preferences.AppPreferences;
+import com.nextcloud.client.preferences.AppPreferencesImpl;
 import com.owncloud.android.BuildConfig;
 import com.owncloud.android.MainApp;
 import com.owncloud.android.R;
-import com.owncloud.android.authentication.AccountUtils;
 import com.owncloud.android.authentication.PassCodeManager;
 import com.owncloud.android.datamodel.ArbitraryDataProvider;
 import com.owncloud.android.datamodel.ExternalLinksProvider;
@@ -81,6 +79,13 @@ import com.owncloud.android.utils.ThemeUtils;
 import java.util.ArrayList;
 
 import javax.inject.Inject;
+
+import androidx.annotation.LayoutRes;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.content.res.ResourcesCompat;
 
 /**
  * An Activity that allows the user to change the application's settings.
@@ -122,8 +127,9 @@ public class SettingsActivity extends PreferenceActivity
     private String pendingLock;
 
     private Account account;
-    private ArbitraryDataProvider arbitraryDataProvider;
+    @Inject ArbitraryDataProvider arbitraryDataProvider;
     @Inject AppPreferences preferences;
+    @Inject UserAccountManager accountManager;
 
     @SuppressWarnings("deprecation")
     @Override
@@ -147,8 +153,7 @@ public class SettingsActivity extends PreferenceActivity
         String appVersion = getAppVersion();
         PreferenceScreen preferenceScreen = (PreferenceScreen) findPreference("preference_screen");
 
-        account = AccountUtils.getCurrentOwnCloudAccount(getApplicationContext());
-        arbitraryDataProvider = new ArbitraryDataProvider(getContentResolver());
+        account = accountManager.getCurrentAccount();
 
         // retrieve user's base uri
         setupBaseUri();
@@ -663,7 +668,7 @@ public class SettingsActivity extends PreferenceActivity
         preferenceCategoryGeneral.setTitle(ThemeUtils.getColoredTitle(getString(R.string.prefs_category_general),
                 accentColor));
 
-        prefStoragePath = (ListPreference) findPreference(com.nextcloud.client.preferences.PreferenceManager.STORAGE_PATH);
+        prefStoragePath = (ListPreference) findPreference(AppPreferencesImpl.STORAGE_PATH);
         if (prefStoragePath != null) {
             StoragePoint[] storageOptions = DataStorageProvider.getInstance().getAvailableStoragePoints();
             String[] entries = new String[storageOptions.length];
@@ -762,7 +767,7 @@ public class SettingsActivity extends PreferenceActivity
             if (serverBaseUri != null) {
                 davDroidLoginIntent.putExtra("url", serverBaseUri.toString() + DAV_PATH);
             }
-            davDroidLoginIntent.putExtra("username", AccountUtils.getAccountUsername(account.name));
+            davDroidLoginIntent.putExtra("username", UserAccountManager.getUsername(account));
             startActivityForResult(davDroidLoginIntent, ACTION_REQUEST_CODE_DAVDROID_SETUP);
         } else {
             // DAVdroid not installed
@@ -979,7 +984,7 @@ public class SettingsActivity extends PreferenceActivity
         storagePath = newStoragePath;
         MainApp.setStoragePath(storagePath);
         SharedPreferences.Editor editor = appPrefs.edit();
-        editor.putString(com.nextcloud.client.preferences.PreferenceManager.STORAGE_PATH, storagePath);
+        editor.putString(AppPreferencesImpl.STORAGE_PATH, storagePath);
         editor.apply();
         String storageDescription = DataStorageProvider.getInstance().getStorageDescriptionByPath(storagePath);
         prefStoragePath.setSummary(storageDescription);
@@ -992,8 +997,8 @@ public class SettingsActivity extends PreferenceActivity
     private void loadStoragePath() {
         SharedPreferences appPrefs = PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
         // Load storage path from shared preferences. Use private internal storage by default.
-        storagePath = appPrefs.getString(com.nextcloud.client.preferences.PreferenceManager.STORAGE_PATH,
-                getApplicationContext().getFilesDir().getAbsolutePath());
+        storagePath = appPrefs.getString(AppPreferencesImpl.STORAGE_PATH,
+                                         getApplicationContext().getFilesDir().getAbsolutePath());
         String storageDescription = DataStorageProvider.getInstance().getStorageDescriptionByPath(storagePath);
         prefStoragePath.setSummary(storageDescription);
     }

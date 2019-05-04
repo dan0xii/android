@@ -3,9 +3,11 @@
  *
  * @author Mario Danic
  * @author Andy Scherzinger
+ * @author Chris Narkiewicz
  * Copyright (C) 2017 Mario Danic
  * Copyright (C) 2017 Andy Scherzinger
  * Copyright (C) 2017 Nextcloud GmbH.
+ * Copyright (C) 2019 Chris Narkiewicz <hello@ezaquarii.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -53,9 +55,7 @@ import com.bumptech.glide.request.target.SimpleTarget;
 import com.google.gson.Gson;
 import com.nextcloud.client.di.Injectable;
 import com.nextcloud.client.preferences.AppPreferences;
-import com.nextcloud.client.preferences.PreferenceManager;
 import com.owncloud.android.R;
-import com.owncloud.android.authentication.AccountUtils;
 import com.owncloud.android.datamodel.ArbitraryDataProvider;
 import com.owncloud.android.datamodel.PushConfigurationState;
 import com.owncloud.android.lib.common.UserInfo;
@@ -142,7 +142,7 @@ public class UserInfoActivity extends FileActivity implements Injectable {
         setContentView(R.layout.user_info_layout);
         unbinder = ButterKnife.bind(this);
 
-        setAccount(AccountUtils.getCurrentOwnCloudAccount(this));
+        setAccount(getUserAccountManager().getCurrentAccount());
         onAccountSet(false);
 
         boolean useBackgroundImage = URLUtil.isValidUrl(
@@ -444,7 +444,7 @@ public class UserInfoActivity extends FileActivity implements Injectable {
 
     @Subscribe(threadMode = ThreadMode.BACKGROUND)
     public void onMessageEvent(TokenPushEvent event) {
-        PushUtils.pushRegistrationToServer(preferences.getPushToken());
+        PushUtils.pushRegistrationToServer(getUserAccountManager(), preferences.getPushToken());
     }
 
 
